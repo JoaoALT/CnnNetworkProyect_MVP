@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: flower-recognition-app
+    runtime: python
+    buildCommand: pip install -r app/requirements.txt
+    startCommand: gunicorn --chdir app app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MODEL_PATH
+        value: model/flower_model_b.onnx
+

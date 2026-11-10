@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌸 Flower Recognition – Oxford 102</title>
+    <style>
+        :root {
+            --bg: #0f0f0f;
+            --card: #1a1a2e;
+            --accent: #e94560;
+            --accent2: #0f3460;
+            --text: #eaeaea;
+            --muted: #999;
+            --success: #16c79a;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            width: 100%;
+            padding: 2rem 1rem 1rem;
+            text-align: center;
+            background: linear-gradient(135deg, var(--accent2), var(--card));
+        }
+        header h1 { font-size: 2rem; margin-bottom: 0.3rem; }
+        header p { color: var(--muted); font-size: 0.95rem; }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 2rem 1rem;
+            flex: 1;
+        }
+
+        /* Upload area */
+        .upload-area {
+            border: 2px dashed #444;
+            border-radius: 16px;
+            padding: 3rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s, background 0.3s;
+            position: relative;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent);
+            background: rgba(233, 69, 96, 0.05);
+        }
+        .upload-area input {
+            position: absolute; inset: 0; opacity: 0; cursor: pointer;
+        }
+        .upload-icon { font-size: 3rem; margin-bottom: 0.5rem; }
+        .upload-text { color: var(--muted); }
+        .upload-text span { color: var(--accent); text-decoration: underline; }
+
+        /* Preview */
+        .preview-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 1.5rem;
+        }
+        .preview-container.visible { display: flex; }
+        .preview-img {
+            max-width: 100%;
+            max-height: 320px;
+            border-radius: 12px;
+            object-fit: contain;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+        }
+        .btn {
+            margin-top: 1.2rem;
+            padding: 0.8rem 2.5rem;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.3s;
+        }
+        .btn:hover { transform: scale(1.04); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Results */
+        .results {
+            display: none;
+            margin-top: 1.5rem;
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .results.visible { display: block; }
+        .results h2 { margin-bottom: 1rem; font-size: 1.1rem; }
+        .result-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.7rem;
+        }
+        .result-rank {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent2);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700;
+            margin-right: 0.8rem;
+            flex-shrink: 0;
+        }
+        .result-rank.top { background: var(--accent); }
+        .result-name {
+            flex: 1;
+            text-transform: capitalize;
+            font-weight: 500;
+        }
+        .result-bar-wrapper {
+            width: 100px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            margin: 0 0.8rem;
+            flex-shrink: 0;
+        }
+        .result-bar {
+            height: 100%;
+            border-radius: 4px;
+            background: var(--success);
+            transition: width 0.6s ease;
+        }
+        .result-pct {
+            width: 50px;
+            text-align: right;
+            font-size: 0.9rem;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+        .spinner.visible { display: block; }
+        .spinner::after {
+            content: '';
+            display: inline-block;
+            width: 32px; height: 32px;
+            border: 3px solid #333;
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .error { color: var(--accent); margin-top: 1rem; text-align: center; display: none; }
+        .error.visible { display: block; }
+
+        footer {
+            width: 100%;
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🌸 Flower Recognition</h1>
+    <p>Upload a flower photo — the AI identifies it among 102 species</p>
+</header>
+
+<div class="container">
+
+    <div class="upload-area" id="uploadArea">
+        <input type="file" id="fileInput" accept="image/*">
+        <div class="upload-icon">📷</div>
+        <p class="upload-text">Drag & drop an image here or <span>browse</span></p>
+    </div>
+
+    <div class="preview-container" id="previewContainer">
+        <img id="previewImg" class="preview-img" alt="Preview">
+        <button class="btn" id="predictBtn" onclick="classify()">🔍 Identify Flower</button>
+    </div>
+
+    <div class="spinner" id="spinner"></div>
+    <div class="error" id="error"></div>
+
+    <div class="results" id="results">
+        <h2>🏆 Top Predictions</h2>
+        <div id="resultsList"></div>
+    </div>
+
+</div>
+
+<footer>
+    Oxford 102 Flowers &middot; CNN (ResNet-50) &middot; Deep Learning &middot; Universidad de La Sabana
+</footer>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const uploadArea = document.getElementById('uploadArea');
+const previewContainer = document.getElementById('previewContainer');
+const previewImg = document.getElementById('previewImg');
+const spinner = document.getElementById('spinner');
+const errorDiv = document.getElementById('error');
+const resultsDiv = document.getElementById('results');
+const resultsList = document.getElementById('resultsList');
+const predictBtn = document.getElementById('predictBtn');
+
+let selectedFile = null;
+
+// Drag & Drop
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+uploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+    if (!file.type.startsWith('image/')) {
+        showError('Please upload an image file.');
+        return;
+    }
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+        previewImg.src = e.target.result;
+        previewContainer.classList.add('visible');
+        resultsDiv.classList.remove('visible');
+        errorDiv.classList.remove('visible');
+    };
+    reader.readAsDataURL(file);
+}
+
+async function classify() {
+    if (!selectedFile) return;
+    predictBtn.disabled = true;
+    spinner.classList.add('visible');
+    resultsDiv.classList.remove('visible');
+    errorDiv.classList.remove('visible');
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+        const res = await fetch('/predict', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.error) {
+            showError(data.error);
+        } else {
+            showResults(data.predictions);
+        }
+    } catch (err) {
+        showError('Connection error. Please try again.');
+    } finally {
+        spinner.classList.remove('visible');
+        predictBtn.disabled = false;
+    }
+}
+
+function showResults(predictions) {
+    resultsList.innerHTML = '';
+    predictions.forEach((p, i) => {
+        const pctNum = parseFloat(p.probability);
+        const row = document.createElement('div');
+        row.className = 'result-row';
+        row.innerHTML = `
+            <div class="result-rank ${i === 0 ? 'top' : ''}">${i + 1}</div>
+            <div class="result-name">${p.class}</div>
+            <div class="result-bar-wrapper"><div class="result-bar" style="width:${pctNum}%"></div></div>
+            <div class="result-pct">${p.probability}</div>
+        `;
+        resultsList.appendChild(row);
+    });
+    resultsDiv.classList.add('visible');
+}
+
+function showError(msg) {
+    errorDiv.textContent = msg;
+    errorDiv.classList.add('visible');
+}
+</script>
+
+</body>
+</html>
+

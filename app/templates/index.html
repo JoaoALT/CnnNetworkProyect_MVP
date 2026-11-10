@@ -577,6 +577,22 @@
             display: block;
         }
 
+        .alert-uncertain {
+            display: none;
+            background: rgba(245, 158, 11, 0.12);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #fcd34d;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            line-height: 1.45;
+        }
+
+        .alert-uncertain.active {
+            display: block;
+        }
+
         footer {
             text-align: center;
             padding: 2rem;
@@ -664,7 +680,7 @@
                         <div class="label">Imágenes</div>
                     </div>
                     <div class="metric-box">
-                        <div class="number">93.8%</div>
+                        <div class="number">99.7%</div>
                         <div class="label">Top-5 Acc.</div>
                     </div>
                     <div class="metric-box">
@@ -689,7 +705,7 @@
                             </div>
                             <div class="model-details">Pesos preentrenados en ImageNet + Fine-Tuning diferencial + Regularización Dropout</div>
                         </div>
-                        <div style="font-weight: 700; color: #34d399; font-size: 1.1rem;">~90%+</div>
+                        <div style="font-weight: 700; color: #34d399; font-size: 1.1rem;">98.2%</div>
                     </div>
 
                     <div class="model-row">
@@ -697,7 +713,7 @@
                             <div class="model-name">Modelo A · CNN Propia desde Cero</div>
                             <div class="model-details">Bloques Residuales + Atención por Canales Squeeze-and-Excitation (SE-Blocks)</div>
                         </div>
-                        <div style="font-weight: 600; color: #94a3b8; font-size: 1rem;">Baseline</div>
+                        <div style="font-weight: 600; color: #94a3b8; font-size: 1rem;">86.9%</div>
                     </div>
                 </div>
             </div>
@@ -749,6 +765,11 @@
                         <h3>🏆 Especies Identificadas</h3>
                         <span style="font-size: 0.75rem; color: var(--text-muted);">Top 5 Confianzas</span>
                     </div>
+                    <div class="alert-uncertain" id="uncertainMsg">
+                        <strong>⚠️ No estoy seguro.</strong> Ninguna especie supera el umbral de confianza.
+                        Puede ser una flor que no está entre las 102 especies del catálogo, o una foto poco clara.
+                        Estas son las opciones más parecidas:
+                    </div>
                     <div id="predictionsList"></div>
                 </div>
 
@@ -774,6 +795,7 @@
         const errorMsg = document.getElementById('errorMsg');
         const resultsBox = document.getElementById('resultsBox');
         const predictionsList = document.getElementById('predictionsList');
+        const uncertainMsg = document.getElementById('uncertainMsg');
 
         let selectedFile = null;
 
@@ -842,7 +864,7 @@
                 if (!response.ok || data.error) {
                     showError(data.error || 'Error en el servidor al clasificar la imagen.');
                 } else {
-                    renderPredictions(data.predictions);
+                    renderPredictions(data.predictions, data.confident !== false);
                 }
             } catch (err) {
                 showError('Error de conexión con el backend de inferencia.');
@@ -852,7 +874,8 @@
             }
         }
 
-        function renderPredictions(predictions) {
+        function renderPredictions(predictions, confident) {
+            uncertainMsg.classList.toggle('active', !confident);
             predictionsList.innerHTML = '';
             predictions.forEach((item, index) => {
                 const pct = parseFloat(item.probability);

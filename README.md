@@ -50,20 +50,21 @@ En el cuaderno de experimentación se diseñaron, entrenaron y contrastaron dos 
 ### Modelo A: CNN Residual con Squeeze-and-Excitation
 - **Enfoque:** Red convolucional entrenada **desde cero** (*from scratch*).
 - **Topología:**
-  - *Stem:* Convolución inicial 7×7 con stride 2, normalización por lotes (`BatchNorm2d`), activación `ReLU` y `MaxPool2d`.
-  - *Etapas residuales:* 4 etapas progresivas (64 $\rightarrow$ 128 $\rightarrow$ 256 $\rightarrow$ 512 canales) con conexiones *skip* (residuales) y módulos de atención por canales **Squeeze-and-Excitation (SE-Blocks)** para recalibrar mapas de características informativos.
+  - *Stem:* dos convoluciones 3×3 (32 y 64 canales, la primera con stride 2), cada una con `BatchNorm2d` y `ReLU`, seguidas de `MaxPool2d`.
+  - *Etapas residuales:* 4 etapas progresivas (64 $\rightarrow$ 128 $\rightarrow$ 256 $\rightarrow$ 512 canales; 2, 2, 2 y 1 bloques) con conexiones *skip* (residuales) y módulos de atención por canales **Squeeze-and-Excitation (SE-Blocks)** para recalibrar mapas de características informativos.
   - *Clasificador:* `AdaptiveAvgPool2d(1)`, `Flatten`, `Dropout(0.4)` y capa lineal densa de 512 $\rightarrow$ 102.
-- **Entrenamiento:** Optimizador AdamW, programación de tasa de aprendizaje con decaimiento coseno, pérdida con *Label Smoothing* (0.1) y balanceo mediante `WeightedRandomSampler`.
+- **Entrenamiento:** Optimizador AdamW, `OneCycleLR` con learning rate máximo elegido por *LR range test*, pérdida con *Label Smoothing* (0.1) y balanceo mediante `WeightedRandomSampler`.
 
 ### Modelo B: Transfer Learning con ResNet-50 (Ganador)
 - **Enfoque:** Aprendizaje por transferencia adaptando una red profunda preentrenada en ImageNet-1K (v2).
 - **Estrategia en 2 fases:**
-  1. **Fase 1 (Backbone congelado):** Se congela el extractor de características y se entrena únicamente la cabeza clasificadora personalizada (`Dropout(0.3)` + `Linear(2048, 102)`) mediante búsqueda en rejilla (*grid search*) de hiperparámetros óptimos ($lr$, $dropout$, $weight\_decay$).
+  1. **Fase 1 (Backbone congelado):** Se congela el extractor de características y se entrena únicamente la cabeza clasificadora personalizada (`Dropout` + `Linear(2048, 102)`) con los hiperparámetros elegidos por búsqueda en rejilla (*grid search*) sobre $lr$, $dropout$ y $weight\_decay$ (mejor combinación: $lr = 10^{-2}$, dropout 0, weight decay 0,1).
   2. **Fase 2 (Fine-Tuning diferencial):** Se descongela toda la red y se aplica ajuste fino con tasas de aprendizaje diferenciales:
      - Backbone: $1\times 10^{-4}$
      - Clasificador: $1\times 10^{-3}$
      - *Scheduler:* `OneCycleLR` con pico en 20% del ciclo.
-- **Regularización y Aumento de Datos:** Rotaciones aleatorias, escalado afín, variación de color (*ColorJitter*), inversión horizontal y desenfoque gaussiano suave para simular fotos tomadas con teléfonos móviles.
+- **Regularización y Aumento de Datos:** recorte aleatorio con escala (`RandomResizedCrop`), inversión horizontal, rotaciones de hasta 20°, variación de color (*ColorJitter*, casi sin alterar el tono), borrado aleatorio (`RandomErasing`) y desenfoque y ruido gaussianos para simular fotos movidas o tomadas con teléfonos de gama baja.
+- **Calibración:** como el *label smoothing* deja al modelo subconfiado, se aplica *temperature scaling* (temperatura ajustada en validación) para que la probabilidad que muestra la app refleje la probabilidad real de acierto.
 
 ---
 
@@ -73,10 +74,17 @@ Evaluación realizada sobre el conjunto de prueba independiente (*test set*):
 
 | Modelo | Arquitectura | Test Accuracy | F1-Score (Macro) | Top-5 Accuracy | Parámetros |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| **Modelo A** | CNN Propia (Residual + SE) | ~72.4% | ~0.710 | ~89.1% | ~11.2 M |
-| **Modelo B** ⭐ | **Transfer Learning (ResNet-50)** | **97.6%** | **0.974** | **99.6%** | **~25.6 M** |
+| **Modelo A** | CNN Propia (Residual + SE) | 86.9% | 0.860 | 96.2% | 6.6 M |
+| **Modelo B** ⭐ | **Transfer Learning (ResNet-50)** | **97.6%** | **0.974** | **99.6%** | **23.7 M** |
 
 > **Conclusión del análisis:** El **Modelo B (ResNet-50)** superó holgadamente al modelo desde cero gracias al conocimiento previo de características visuales universales en capas tempranas, alcanzando un **99.6% en Top-5 Accuracy**, ideal para una aplicación de reconocimiento botánico.
+
+### Modelo desplegado en la app
+Los pesos que usa la app se generaron con `train_modelo_b.py`, que repite la receta del Modelo B del notebook (misma partición, aumento de datos e hiperparámetros) y añade calibración por temperatura y TTA con espejo. Resultados en el mismo conjunto de prueba (1.228 imágenes), guardados en `app/model/config.json`:
+
+| Accuracy | F1 (Macro) | Top-5 | ECE (calibración) | Temperatura | Umbral 0,5 |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| 98.2% | 0.981 | 99.7% | 0.007 | 0.41 | responde en el 99,0% de los casos con 98,9% de acierto |
 
 ---
 
@@ -111,8 +119,8 @@ La aplicación está construida como un **monolito ligero y autocontenido** opti
   - *Columna Izquierda:* Presentación comercial del proyecto, justificación técnica, métricas del cuaderno y comparativa de arquitecturas.
   - *Columna Derecha ("¡Pruébalo aquí!"):* Área de carga interactiva con soporte drag & drop, previsualización de imagen y gráfico de barras porcentuales con el Top-5 de predicciones.
 - **Motor de Inferencia Dual:**
-  - Utiliza preferentemente **ONNX Runtime** (`flower_model_b.onnx`) para tiempos de respuesta menores a 80 ms en CPU.
-  - Posee mecanismo de contingencia para cargar checkpoints nativos de PyTorch (`model_b_best.pt`) si el runtime ONNX no estuviera disponible.
+  - Utiliza **ONNX Runtime** (`flower_model_b.onnx`) en CPU, sin necesidad de instalar PyTorch en el servidor.
+  - Si ONNX Runtime no estuviera disponible y PyTorch sí está instalado, carga el checkpoint nativo (`model_b_best.pt`). Si no encuentra pesos entrenados, la app se detiene con un error en lugar de responder con un modelo sin entrenar.
 
 ---
 
@@ -126,8 +134,10 @@ Para garantizar consistencia estricta con el cuaderno, el pipeline de preprocesa
 4. **Normalización ImageNet:**
    $$\mu = [0.485, 0.456, 0.406], \quad \sigma = [0.229, 0.224, 0.225]$$
 5. **Transposición dimensional:** $(H, W, C) \rightarrow (1, C, H, W)$.
-6. **Softmax:**
-   $$P(y = c \mid x) = \frac{e^{z_c}}{\sum_{j=1}^{102} e^{z_j}}$$
+6. **Test-time augmentation (TTA):** se clasifica la imagen y su reflejo horizontal, y se promedian las probabilidades.
+7. **Softmax calibrado** con la temperatura $T$ guardada en `app/model/config.json`:
+   $$P(y = c \mid x) = \frac{e^{z_c / T}}{\sum_{j=1}^{102} e^{z_j / T}}$$
+8. **Umbral de confianza:** si la probabilidad más alta es menor al umbral de `config.json` (0,5), la interfaz muestra "No estoy seguro", porque la foto puede ser de una especie que no está entre las 102 del catálogo.
 
 ---
 
@@ -160,11 +170,18 @@ pip install -r app/requirements.txt
 ```
 
 ### 4. Asegurar el modelo entrenado
-Verifica que el modelo exportado esté ubicado en la carpeta del modelo:
+Verifica que estos archivos estén en la carpeta del modelo:
 ```text
-app/model/flower_model_b.onnx
+app/model/flower_model_b.onnx   # modelo que usa la app
+app/model/config.json           # temperatura de calibración, umbral y métricas de prueba
 ```
-*(Si deseas reexportar el modelo desde el checkpoint PyTorch, ejecuta `python export_onnx.py`).*
+
+Para regenerarlos desde cero (requiere GPU con CUDA; descarga el dataset en `data/`):
+```bash
+pip install torch torchvision scikit-learn scipy pandas onnx onnxscript onnxruntime
+python train_modelo_b.py   # entrena el Modelo B con la receta del notebook -> model_b_best.pt + config.json
+python export_onnx.py      # exporta a ONNX y verifica que dé lo mismo que PyTorch
+```
 
 ### 5. Iniciar la aplicación
 ```bash
@@ -184,6 +201,7 @@ Abre tu navegador e ingresa a: **`http://localhost:5000`**
 ```text
 proyecto final/
 ├── Proyecto_Flores_Oxford102_v2.ipynb    # Cuaderno de investigación y entrenamiento
+├── train_modelo_b.py                     # Reentrena el Modelo B (misma receta del notebook) para la app
 ├── export_onnx.py                        # Script de exportación de PyTorch a ONNX
 ├── render.yaml                           # Archivo de infraestructura para Render
 ├── .gitignore                            # Exclusiones de Git (cache, pesos pesados)
@@ -197,7 +215,8 @@ proyecto final/
     │
     ├── model/                            # Modelos de producción
     │   ├── flower_model_b.onnx           # Modelo ONNX compilado (~95 MB)
-    │   └── model_b_best.pt               # Checkpoint de pesos PyTorch
+    │   ├── model_b_best.pt               # Checkpoint de pesos PyTorch
+    │   └── config.json                   # Temperatura, umbral de confianza y métricas
     │
     └── templates/
         └── index.html                    # Frontend responsivo (Showcase + Playground)

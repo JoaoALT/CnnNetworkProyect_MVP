@@ -9,4 +9,3 @@ services:
         value: 3.11.9
       - key: MODEL_PATH
         value: model/flower_model_b.onnx
-

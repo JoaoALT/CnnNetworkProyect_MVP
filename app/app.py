@@ -13,12 +13,22 @@ from flask import Flask, request, render_template, jsonify
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MODEL_DIR = os.environ.get("MODEL_DIR", "model")
+MODEL_DIR = os.environ.get("MODEL_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "model"))
 IMG_SIZE = 224
 RESIZE_SHORT = 256
 MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 STD = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 TOP_K = 5
+
+# Calibración y umbral: los genera train_modelo_b.py en model/config.json
+_cfg_path = os.path.join(MODEL_DIR, "config.json")
+CONFIG = {}
+if os.path.exists(_cfg_path):
+    with open(_cfg_path, encoding="utf-8") as f:
+        CONFIG = json.load(f)
+TEMPERATURE = float(CONFIG.get("temperature", 1.0))      # T < 1 corrige la subconfianza del label smoothing
+CONF_THRESHOLD = float(CONFIG.get("conf_threshold", 0.5))  # por debajo: "no estoy seguro"
+TTA_FLIP = bool(CONFIG.get("tta_flip", True))             # promediar con la imagen reflejada
 
 CLASS_NAMES = [
     "pink primrose", "hard-leaved pocket orchid", "canterbury bells", "sweet pea",
@@ -101,13 +111,10 @@ class ModelRunner:
                 nn.Linear(model.fc.in_features, len(CLASS_NAMES))
             )
 
-            if os.path.exists(pt_file):
-                state_dict = torch.load(pt_file, map_location="cpu")
-                model.load_state_dict(state_dict)
-                print(f"[INFO] Loaded PyTorch checkpoint from {pt_file}")
-            else:
-                # Load pretrained weights as fallback demonstration
-                print(f"[INFO] Checkpoint not found at {pt_file}. Initializing base architecture.")
+            # Sin pesos entrenados el modelo respondería al azar: mejor fallar que dar predicciones falsas
+            state_dict = torch.load(pt_file, map_location="cpu")
+            model.load_state_dict(state_dict)
+            print(f"[INFO] Loaded PyTorch checkpoint from {pt_file}")
 
             model.eval()
             self.engine = model
@@ -118,19 +125,23 @@ class ModelRunner:
 
         raise RuntimeError("No model backend available! Please supply flower_model_b.onnx or model_b_best.pt")
 
-    def predict(self, tensor_np: np.ndarray) -> np.ndarray:
+    def _logits(self, batch: np.ndarray) -> np.ndarray:
         if self.backend == "onnx":
             input_name = self.engine.get_inputs()[0].name
-            logits = self.engine.run(None, {input_name: tensor_np})[0][0]
-        else:
-            import torch
-            with torch.no_grad():
-                tensor_torch = torch.from_numpy(tensor_np)
-                logits = self.engine(tensor_torch).squeeze(0).numpy()
+            return self.engine.run(None, {input_name: batch})[0]
+        import torch
+        with torch.no_grad():
+            return self.engine(torch.from_numpy(batch)).numpy()
 
-        # Softmax
-        exp = np.exp(logits - logits.max())
-        return exp / exp.sum()
+    def predict(self, tensor_np: np.ndarray) -> np.ndarray:
+        """Probabilidades calibradas: softmax(logits / T), promediadas con la imagen reflejada (TTA)."""
+        batch = tensor_np
+        if TTA_FLIP:
+            batch = np.concatenate([tensor_np, np.ascontiguousarray(tensor_np[..., ::-1])])
+        logits = self._logits(batch) / TEMPERATURE
+        exp = np.exp(logits - logits.max(axis=1, keepdims=True))
+        probs = exp / exp.sum(axis=1, keepdims=True)
+        return probs.mean(axis=0)
 
 runner = None
 
@@ -176,14 +187,19 @@ def predict():
             {"class": CLASS_NAMES[i], "probability": f"{probs[i] * 100:.1f}%"}
             for i in top_idx
         ]
-        return jsonify({"predictions": results})
+        return jsonify({
+            "predictions": results,
+            "confident": bool(probs[top_idx[0]] >= CONF_THRESHOLD),
+            "threshold": CONF_THRESHOLD,
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "backend": get_runner().backend})
+    return jsonify({"status": "ok", "backend": get_runner().backend,
+                    "temperature": TEMPERATURE, "tta_flip": TTA_FLIP, "conf_threshold": CONF_THRESHOLD})
 
 
 if __name__ == "__main__":

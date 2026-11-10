@@ -2,6 +2,6 @@ flask>=3.0.0
 gunicorn>=21.0.0
 numpy>=1.24.0
 Pillow>=10.0.0
-torch>=2.0.0
-torchvision>=0.15.0
 onnxruntime>=1.16.0
+# torch/torchvision are not needed: the app runs the ONNX model.
+# They are only used to train (train_modelo_b.py) and export (export_onnx.py).

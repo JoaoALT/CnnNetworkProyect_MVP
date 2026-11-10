@@ -1,5 +1,19 @@
-#enviroment variables
+# environment variables
 env
+.env
 
-#ignore virtual local env
+# virtual environments
+venv/
 app/venv/
+.venv/
+
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
+app/__pycache__/
+
+# data and checkpoints
+data/
+checkpoints/
+*.data

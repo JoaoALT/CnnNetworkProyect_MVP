@@ -3,6 +3,8 @@
 
 Aplicación web monolítica (MVP) para la identificación automática de especies florales a partir de fotografías, basada en el mejor modelo convolucional evaluado en el cuaderno de experimentación `Proyecto_Flores_Oxford102_v2.ipynb`.
 
+Integrantes: Fiona Susana Ruiz, Samuel Gomez, Juan Pablo Zuleta, Tomás Gaviria, Joao Alexandre Muñoz Obando.
+
 ---
 
 ## 📑 Tabla de Contenidos

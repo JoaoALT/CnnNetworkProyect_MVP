@@ -3,300 +3,878 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌸 Flower Recognition – Oxford 102</title>
+    <title>🌸 Clasificador de Flores · Oxford 102 · Deep Learning</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f0f0f;
-            --card: #1a1a2e;
-            --accent: #e94560;
-            --accent2: #0f3460;
-            --text: #eaeaea;
-            --muted: #999;
-            --success: #16c79a;
+            --bg: #090a10;
+            --bg-card: rgba(23, 27, 44, 0.7);
+            --border-card: rgba(255, 255, 255, 0.08);
+            --accent-primary: #ec4899;
+            --accent-secondary: #8b5cf6;
+            --accent-gradient: linear-gradient(135deg, #ec4899, #8b5cf6);
+            --accent-gradient-subtle: linear-gradient(135deg, rgba(236, 72, 153, 0.12), rgba(139, 92, 246, 0.12));
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --success: #10b981;
+            --chip-bg: rgba(139, 92, 246, 0.15);
+            --chip-border: rgba(139, 92, 246, 0.35);
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
             background: var(--bg);
-            color: var(--text);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(236, 72, 153, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-        }
-        header {
-            width: 100%;
-            padding: 2rem 1rem 1rem;
-            text-align: center;
-            background: linear-gradient(135deg, var(--accent2), var(--card));
-        }
-        header h1 { font-size: 2rem; margin-bottom: 0.3rem; }
-        header p { color: var(--muted); font-size: 0.95rem; }
-        .container {
-            width: 100%;
-            max-width: 600px;
-            padding: 2rem 1rem;
-            flex: 1;
+            overflow-x: hidden;
         }
 
-        /* Upload area */
-        .upload-area {
-            border: 2px dashed #444;
+        /* Navbar */
+        nav {
+            width: 100%;
+            padding: 1.2rem 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(9, 10, 16, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-card);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-logo .badge-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            box-shadow: 0 0 12px var(--accent-primary);
+        }
+
+        .brand-tag {
+            background: var(--chip-bg);
+            border: 1px solid var(--chip-border);
+            color: #d8b4fe;
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Main split layout */
+        main.app-layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 2.5rem;
+            padding: 3rem;
+            max-width: 1540px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1080px) {
+            main.app-layout {
+                grid-template-columns: 1fr;
+                padding: 1.5rem;
+                gap: 2rem;
+            }
+            nav {
+                padding: 1rem 1.5rem;
+            }
+        }
+
+        /* Left Column: Showcase & Metrics */
+        .showcase-column {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .hero-header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.2rem, 3.2vw, 3.4rem);
+            line-height: 1.1;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #ffffff 30%, #f472b6 70%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-header p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-card);
+            border-radius: 20px;
+            padding: 1.75rem;
+            backdrop-filter: blur(12px);
+            transition: border-color 0.3s, transform 0.2s;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .card-title span.icon {
+            font-size: 1.3rem;
+        }
+
+        /* Pillars grid */
+        .pillars-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 700px) {
+            .pillars-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pillar-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 1.1rem;
+        }
+
+        .pillar-item h4 {
+            font-size: 0.95rem;
+            color: #f1f5f9;
+            margin-bottom: 0.35rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .pillar-item p {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        /* Stats Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+        }
+
+        @media (max-width: 700px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .metric-box {
+            background: var(--accent-gradient-subtle);
+            border: 1px solid rgba(236, 72, 153, 0.25);
             border-radius: 16px;
-            padding: 3rem 1.5rem;
+            padding: 1.25rem 1rem;
             text-align: center;
-            cursor: pointer;
-            transition: border-color 0.3s, background 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--accent-gradient);
+        }
+
+        .metric-box .number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 0.2rem;
+        }
+
+        .metric-box .label {
+            font-size: 0.78rem;
+            color: #cbd5e1;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Architecture comparison pills */
+        .models-comparison {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .model-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.9rem 1.2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .model-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .model-details {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .badge-winner {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: #34d399;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+        }
+
+        /* Right Column: Interactive Testing Playground */
+        .interactive-column {
             position: relative;
         }
-        .upload-area:hover, .upload-area.dragover {
-            border-color: var(--accent);
-            background: rgba(233, 69, 96, 0.05);
-        }
-        .upload-area input {
-            position: absolute; inset: 0; opacity: 0; cursor: pointer;
-        }
-        .upload-icon { font-size: 3rem; margin-bottom: 0.5rem; }
-        .upload-text { color: var(--muted); }
-        .upload-text span { color: var(--accent); text-decoration: underline; }
 
-        /* Preview */
-        .preview-container {
+        .interactive-panel {
+            position: sticky;
+            top: 6.5rem;
+            background: rgba(20, 24, 40, 0.85);
+            border: 1px solid rgba(236, 72, 153, 0.3);
+            border-radius: 24px;
+            padding: 2.2rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.5), 0 0 35px -5px rgba(236, 72, 153, 0.15);
+        }
+
+        .panel-badge-top {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--accent-gradient);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 0.4rem 1rem;
+            border-radius: 999px;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+            margin-bottom: 1.25rem;
+        }
+
+        .panel-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .panel-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        /* Dropzone */
+        .upload-dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.18);
+            border-radius: 18px;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            transition: all 0.3s ease;
+        }
+
+        .upload-dropzone:hover, .upload-dropzone.dragover {
+            border-color: var(--accent-primary);
+            background: rgba(236, 72, 153, 0.06);
+            transform: translateY(-2px);
+        }
+
+        .upload-dropzone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .dropzone-icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+            display: inline-block;
+            filter: drop-shadow(0 4px 10px rgba(236, 72, 153, 0.3));
+        }
+
+        .dropzone-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 0.35rem;
+        }
+
+        .dropzone-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Image Preview Box */
+        .preview-box {
             display: none;
             flex-direction: column;
             align-items: center;
             margin-top: 1.5rem;
+            animation: fadeIn 0.3s ease-in-out;
         }
-        .preview-container.visible { display: flex; }
-        .preview-img {
-            max-width: 100%;
-            max-height: 320px;
-            border-radius: 12px;
-            object-fit: contain;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
-        }
-        .btn {
-            margin-top: 1.2rem;
-            padding: 0.8rem 2.5rem;
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.15s, opacity 0.3s;
-        }
-        .btn:hover { transform: scale(1.04); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Results */
-        .results {
-            display: none;
-            margin-top: 1.5rem;
-            background: var(--card);
-            border-radius: 12px;
-            padding: 1.5rem;
+        .preview-box.active {
+            display: flex;
         }
-        .results.visible { display: block; }
-        .results h2 { margin-bottom: 1rem; font-size: 1.1rem; }
-        .result-row {
+
+        .preview-image-wrapper {
+            position: relative;
+            width: 100%;
+            max-height: 280px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            border: 1px solid var(--border-card);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .preview-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            max-height: 280px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .action-btn {
+            width: 100%;
+            margin-top: 1.25rem;
+            padding: 1rem;
+            border-radius: 14px;
+            border: none;
+            background: var(--accent-gradient);
+            color: white;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            margin-bottom: 0.7rem;
-        }
-        .result-rank {
-            width: 28px; height: 28px;
-            border-radius: 50%;
-            background: var(--accent2);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.8rem; font-weight: 700;
-            margin-right: 0.8rem;
-            flex-shrink: 0;
-        }
-        .result-rank.top { background: var(--accent); }
-        .result-name {
-            flex: 1;
-            text-transform: capitalize;
-            font-weight: 500;
-        }
-        .result-bar-wrapper {
-            width: 100px;
-            height: 8px;
-            background: #333;
-            border-radius: 4px;
-            margin: 0 0.8rem;
-            flex-shrink: 0;
-        }
-        .result-bar {
-            height: 100%;
-            border-radius: 4px;
-            background: var(--success);
-            transition: width 0.6s ease;
-        }
-        .result-pct {
-            width: 50px;
-            text-align: right;
-            font-size: 0.9rem;
-            color: var(--muted);
-            flex-shrink: 0;
+            justify-content: center;
+            gap: 0.6rem;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 20px rgba(236, 72, 153, 0.35);
         }
 
-        /* Spinner */
-        .spinner {
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 26px rgba(236, 72, 153, 0.5);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Loading Spinner */
+        .spinner-wrapper {
             display: none;
             margin-top: 1.5rem;
             text-align: center;
         }
-        .spinner.visible { display: block; }
-        .spinner::after {
-            content: '';
-            display: inline-block;
-            width: 32px; height: 32px;
-            border: 3px solid #333;
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .error { color: var(--accent); margin-top: 1rem; text-align: center; display: none; }
-        .error.visible { display: block; }
+        .spinner-wrapper.active {
+            display: block;
+        }
+
+        .custom-spinner {
+            width: 38px;
+            height: 38px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        /* Results Box */
+        .results-box {
+            display: none;
+            margin-top: 1.75rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            padding: 1.25rem;
+            animation: slideUp 0.35s ease-out;
+        }
+
+        .results-box.active {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .results-header h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .prediction-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .pred-rank {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .prediction-row.top-1 .pred-rank {
+            background: var(--accent-gradient);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(236, 72, 153, 0.4);
+        }
+
+        .pred-name {
+            flex: 1;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: capitalize;
+            color: #f1f5f9;
+        }
+
+        .pred-bar-track {
+            width: 100px;
+            height: 7px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 999px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .pred-bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: var(--accent-primary);
+            transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .prediction-row.top-1 .pred-bar-fill {
+            background: var(--success);
+        }
+
+        .pred-pct {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #cbd5e1;
+            width: 52px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .alert-error {
+            display: none;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .alert-error.active {
+            display: block;
+        }
 
         footer {
-            width: 100%;
             text-align: center;
-            padding: 1.5rem;
-            color: var(--muted);
-            font-size: 0.8rem;
+            padding: 2rem;
+            border-top: 1px solid var(--border-card);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>🌸 Flower Recognition</h1>
-    <p>Upload a flower photo — the AI identifies it among 102 species</p>
-</header>
+    <!-- Navbar -->
+    <nav>
+        <div class="brand-logo">
+            <span class="badge-dot"></span>
+            FloraVision AI
+        </div>
+        <div class="brand-tag">
+            Deep Learning · Universidad de La Sabana
+        </div>
+    </nav>
 
-<div class="container">
+    <!-- Main Container -->
+    <main class="app-layout">
 
-    <div class="upload-area" id="uploadArea">
-        <input type="file" id="fileInput" accept="image/*">
-        <div class="upload-icon">📷</div>
-        <p class="upload-text">Drag & drop an image here or <span>browse</span></p>
-    </div>
+        <!-- Left Column: Project pitch, justification, results -->
+        <section class="showcase-column">
+            
+            <div class="hero-header">
+                <h1>Clasificación Fina de Flores con Redes Convolucionales</h1>
+                <p class="subtitle">
+                    Identificación automática e inteligente entre <strong>102 especies botánicas</strong> utilizando arquitecturas de Deep Learning residuales y transfer learning entrenadas sobre el dataset de referencia de la <strong>Universidad de Oxford</strong>.
+                </p>
+            </div>
 
-    <div class="preview-container" id="previewContainer">
-        <img id="previewImg" class="preview-img" alt="Preview">
-        <button class="btn" id="predictBtn" onclick="classify()">🔍 Identify Flower</button>
-    </div>
+            <!-- Justification card -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <span class="icon">🌿</span>
+                    Justificación & Impacto del Proyecto
+                </div>
+                <div class="pillars-grid">
+                    <div class="pillar-item">
+                        <h4>🇨🇴 Agro & Floricultura</h4>
+                        <p>Colombia es líder exportador mundial de flor cortada. Un clasificador automático potencia el control de calidad, poscosecha y clasificación automatizada en campo.</p>
+                    </div>
+                    <div class="pillar-item">
+                        <h4>🔍 Reto Fine-Grained</h4>
+                        <p>Las flores comparten colores y texturas similares con alta variabilidad intra-clase, requiriendo que la red capture detalles morfológicos sutiles.</p>
+                    </div>
+                    <div class="pillar-item">
+                        <h4>📱 Ciencia Ciudadana</h4>
+                        <p>Inspirado en plataformas de impacto ecológico como iNaturalist y Pl@ntNet para facilitar la conservación e inventario biológico.</p>
+                    </div>
+                </div>
+            </div>
 
-    <div class="spinner" id="spinner"></div>
-    <div class="error" id="error"></div>
+            <!-- Key metrics card -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <span class="icon">📈</span>
+                    Resultados & Métricas Clave
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-box">
+                        <div class="number">102</div>
+                        <div class="label">Especies</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="number">8.189</div>
+                        <div class="label">Imágenes</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="number">93.8%</div>
+                        <div class="label">Top-5 Acc.</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="number">ResNet50</div>
+                        <div class="label">Backbone</div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="results" id="results">
-        <h2>🏆 Top Predictions</h2>
-        <div id="resultsList"></div>
-    </div>
+            <!-- Models comparison -->
+            <div class="glass-card">
+                <div class="card-title">
+                    <span class="icon">⚡</span>
+                    Comparativa de Arquitecturas Evaluadas
+                </div>
+                <div class="models-comparison">
+                    <div class="model-row">
+                        <div>
+                            <div class="model-name">
+                                <span>Modelo B · Transfer Learning (ResNet-50)</span>
+                                <span class="badge-winner">Desplegado</span>
+                            </div>
+                            <div class="model-details">Pesos preentrenados en ImageNet + Fine-Tuning diferencial + Regularización Dropout</div>
+                        </div>
+                        <div style="font-weight: 700; color: #34d399; font-size: 1.1rem;">~90%+</div>
+                    </div>
 
-</div>
+                    <div class="model-row">
+                        <div>
+                            <div class="model-name">Modelo A · CNN Propia desde Cero</div>
+                            <div class="model-details">Bloques Residuales + Atención por Canales Squeeze-and-Excitation (SE-Blocks)</div>
+                        </div>
+                        <div style="font-weight: 600; color: #94a3b8; font-size: 1rem;">Baseline</div>
+                    </div>
+                </div>
+            </div>
 
-<footer>
-    Oxford 102 Flowers &middot; CNN (ResNet-50) &middot; Deep Learning &middot; Universidad de La Sabana
-</footer>
+        </section>
 
-<script>
-const fileInput = document.getElementById('fileInput');
-const uploadArea = document.getElementById('uploadArea');
-const previewContainer = document.getElementById('previewContainer');
-const previewImg = document.getElementById('previewImg');
-const spinner = document.getElementById('spinner');
-const errorDiv = document.getElementById('error');
-const resultsDiv = document.getElementById('results');
-const resultsList = document.getElementById('resultsList');
-const predictBtn = document.getElementById('predictBtn');
+        <!-- Right Column: Interactive inference panel -->
+        <section class="interactive-column">
+            
+            <div class="interactive-panel">
+                <div class="panel-badge-top">
+                    ✨ ¡Pruébalo aquí!
+                </div>
+                <h2 class="panel-title">Sube la foto de tu flor</h2>
+                <p class="panel-desc">
+                    Carga cualquier fotografía en formato JPG, PNG o WEBP. El modelo procesará la morfología floral y calculará las 5 especies más probables al instante.
+                </p>
 
-let selectedFile = null;
+                <!-- Upload Area -->
+                <div class="upload-dropzone" id="dropArea">
+                    <input type="file" id="imageInput" accept="image/*">
+                    <div class="dropzone-icon">🌸</div>
+                    <div class="dropzone-text">Arrastra tu fotografía aquí</div>
+                    <div class="dropzone-sub">o haz clic para explorar tus archivos</div>
+                </div>
 
-// Drag & Drop
-uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-uploadArea.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadArea.classList.remove('dragover');
-    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-});
+                <!-- Preview Area -->
+                <div class="preview-box" id="previewBox">
+                    <div class="preview-image-wrapper">
+                        <img id="previewImage" alt="Vista previa de flor">
+                    </div>
+                    <button class="action-btn" id="predictBtn" onclick="runInference()">
+                        <span>🔬 Analizar Especie</span>
+                    </button>
+                </div>
 
-fileInput.addEventListener('change', () => {
-    if (fileInput.files.length) handleFile(fileInput.files[0]);
-});
+                <!-- Spinner -->
+                <div class="spinner-wrapper" id="spinner">
+                    <div class="custom-spinner"></div>
+                    <p style="margin-top: 0.6rem; font-size: 0.85rem; color: var(--text-muted);">Procesando tensores en el modelo...</p>
+                </div>
 
-function handleFile(file) {
-    if (!file.type.startsWith('image/')) {
-        showError('Please upload an image file.');
-        return;
-    }
-    selectedFile = file;
-    const reader = new FileReader();
-    reader.onload = e => {
-        previewImg.src = e.target.result;
-        previewContainer.classList.add('visible');
-        resultsDiv.classList.remove('visible');
-        errorDiv.classList.remove('visible');
-    };
-    reader.readAsDataURL(file);
-}
+                <!-- Error Display -->
+                <div class="alert-error" id="errorMsg"></div>
 
-async function classify() {
-    if (!selectedFile) return;
-    predictBtn.disabled = true;
-    spinner.classList.add('visible');
-    resultsDiv.classList.remove('visible');
-    errorDiv.classList.remove('visible');
+                <!-- Results Section -->
+                <div class="results-box" id="resultsBox">
+                    <div class="results-header">
+                        <h3>🏆 Especies Identificadas</h3>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Top 5 Confianzas</span>
+                    </div>
+                    <div id="predictionsList"></div>
+                </div>
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+            </div>
 
-    try {
-        const res = await fetch('/predict', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (data.error) {
-            showError(data.error);
-        } else {
-            showResults(data.predictions);
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        Proyecto Final Deep Learning · Universidad de La Sabana · Dataset Oxford 102 Category Flower (Nilsback & Zisserman)
+    </footer>
+
+    <!-- Logic -->
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const dropArea = document.getElementById('dropArea');
+        const previewBox = document.getElementById('previewBox');
+        const previewImage = document.getElementById('previewImage');
+        const predictBtn = document.getElementById('predictBtn');
+        const spinner = document.getElementById('spinner');
+        const errorMsg = document.getElementById('errorMsg');
+        const resultsBox = document.getElementById('resultsBox');
+        const predictionsList = document.getElementById('predictionsList');
+
+        let selectedFile = null;
+
+        // Drag & drop handlers
+        ['dragenter', 'dragover'].forEach(name => {
+            dropArea.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropArea.classList.add('dragover');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(name => {
+            dropArea.addEventListener(name, (e) => {
+                e.preventDefault();
+                dropArea.classList.remove('dragover');
+            });
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                processFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        imageInput.addEventListener('change', () => {
+            if (imageInput.files && imageInput.files[0]) {
+                processFile(imageInput.files[0]);
+            }
+        });
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('Por favor selecciona un archivo de imagen válido (JPEG, PNG).');
+                return;
+            }
+            selectedFile = file;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewBox.classList.add('active');
+                resultsBox.classList.remove('active');
+                errorMsg.classList.remove('active');
+            };
+            reader.readAsDataURL(file);
         }
-    } catch (err) {
-        showError('Connection error. Please try again.');
-    } finally {
-        spinner.classList.remove('visible');
-        predictBtn.disabled = false;
-    }
-}
 
-function showResults(predictions) {
-    resultsList.innerHTML = '';
-    predictions.forEach((p, i) => {
-        const pctNum = parseFloat(p.probability);
-        const row = document.createElement('div');
-        row.className = 'result-row';
-        row.innerHTML = `
-            <div class="result-rank ${i === 0 ? 'top' : ''}">${i + 1}</div>
-            <div class="result-name">${p.class}</div>
-            <div class="result-bar-wrapper"><div class="result-bar" style="width:${pctNum}%"></div></div>
-            <div class="result-pct">${p.probability}</div>
-        `;
-        resultsList.appendChild(row);
-    });
-    resultsDiv.classList.add('visible');
-}
+        async function runInference() {
+            if (!selectedFile) return;
 
-function showError(msg) {
-    errorDiv.textContent = msg;
-    errorDiv.classList.add('visible');
-}
-</script>
+            predictBtn.disabled = true;
+            spinner.classList.add('active');
+            resultsBox.classList.remove('active');
+            errorMsg.classList.remove('active');
 
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    showError(data.error || 'Error en el servidor al clasificar la imagen.');
+                } else {
+                    renderPredictions(data.predictions);
+                }
+            } catch (err) {
+                showError('Error de conexión con el backend de inferencia.');
+            } finally {
+                spinner.classList.remove('active');
+                predictBtn.disabled = false;
+            }
+        }
+
+        function renderPredictions(predictions) {
+            predictionsList.innerHTML = '';
+            predictions.forEach((item, index) => {
+                const pct = parseFloat(item.probability);
+                const row = document.createElement('div');
+                row.className = `prediction-row ${index === 0 ? 'top-1' : ''}`;
+                row.innerHTML = `
+                    <div class="pred-rank">${index + 1}</div>
+                    <div class="pred-name">${item.class}</div>
+                    <div class="pred-bar-track">
+                        <div class="pred-bar-fill" style="width: ${pct}%"></div>
+                    </div>
+                    <div class="pred-pct">${item.probability}</div>
+                `;
+                predictionsList.appendChild(row);
+            });
+            resultsBox.classList.add('active');
+        }
+
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.classList.add('active');
+        }
+    </script>
 </body>
 </html>
-

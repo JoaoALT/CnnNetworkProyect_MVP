@@ -177,29 +177,6 @@ Abre tu navegador e ingresa a: **`http://localhost:5000`**
 
 ---
 
-## 🚀 Despliegue en Render.com
-
-Render permite desplegar el servicio web de forma gratuita:
-
-### Opción A: Despliegue mediante Git (Recomendado)
-1. Sube tu código a un repositorio en **GitHub** o **GitLab**.
-2. Inicia sesión en [dashboard.render.com](https://dashboard.render.com).
-3. Haz clic en **New +** $\rightarrow$ **Web Service**.
-4. Conecta tu repositorio.
-5. Completa la configuración del servicio:
-   - **Name:** `floravision-oxford102`
-   - **Root Directory:** `app`
-   - **Environment:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
-   - **Instance Type:** `Free`
-6. Haz clic en **Deploy Web Service**.
-
-### Opción B: Blueprint Declarativo (`render.yaml`)
-El repositorio incluye el archivo [`render.yaml`](file:///c:/Users/shayc/OneDrive/Escritorio/Desktop%20Folders/deeplearning/proyecto%20final/render.yaml). Puedes simplemente seleccionar la opción **Blueprints** en Render para que tome la configuración de forma automática.
-
----
-
 ## 📂 Estructura del Repositorio
 
 ```text

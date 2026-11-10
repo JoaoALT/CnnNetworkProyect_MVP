@@ -1,0 +1,5 @@
+#enviroment variables
+env
+
+#ignore virtual local env
+app/venv/
